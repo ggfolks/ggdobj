@@ -60,9 +60,16 @@ public abstract class AbstractApp<TRoot> : MonoBehaviour where TRoot : AbstractR
   }
 
   /// <summary>
-  /// Called after parent class initialization.
+  /// Called after parent class initialization to initialize the client.
   /// </summary>
-  protected virtual void DidInit () {
+  protected virtual void InitClient (TRoot rootObject) {
+    // nothing by default
+  }
+
+  /// <summary>
+  /// Called after parent class initialization to initialize the server.
+  /// </summary>
+  protected virtual void InitServer (TRoot rootObject) {
     // nothing by default
   }
 
@@ -77,6 +84,7 @@ public abstract class AbstractApp<TRoot> : MonoBehaviour where TRoot : AbstractR
     // if we're running headless, all we want is the server
     if (Application.isBatchMode) {
       Server<TRoot>.Start();
+      InitServer(Server<TRoot>.rootObject);
       return;
     }
 
@@ -90,12 +98,12 @@ public abstract class AbstractApp<TRoot> : MonoBehaviour where TRoot : AbstractR
       if (!EditorPrefs.GetBool(DObjMenuItems.ConnectToRemoteServerName)) {
         webSocketURL = $"ws://localhost:{Server<TRoot>.port}/data";
         Server<TRoot>.Start();
+        InitServer(Server<TRoot>.rootObject);
       }
     #endif
 
     client = new Client<TRoot>(webSocketURL);
-
-    DidInit();
+    InitClient(client.rootObject);
   }
 
   private async Task<FirebaseApp> InitFirebase () {
