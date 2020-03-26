@@ -1,0 +1,16 @@
+{
+  "name": "gg.folks.dobj",
+  "version": "1.0.0",
+  "displayName": "GGFolks DObj",
+  "description": "Shared client/server code.",
+  "unity": "2019.3",
+  "dependencies": {
+    "com.google.firebase.auth": "6.13.0",
+    "com.google.firebase.firestore": "6.13.0"
+ },
+  "author": {
+    "name": "GGFolks",
+    "email": "dev@folks.gg",
+    "url": "https://folks.gg"
+  }
+}
