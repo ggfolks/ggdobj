@@ -3,13 +3,13 @@ namespace GGFolks.Protocol {
 using System;
 
 /// <summary>
-/// Specifies the backing type of a collection property.
+/// Specifies the backing type of a collection field.
 /// </summary>
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Field)]
 public class Backing : Attribute {
 
   /// <summary>
-  /// The type of backing for the collection property.
+  /// The type of backing for the collection field.
   /// </summary>
   public readonly BackingType type;
 

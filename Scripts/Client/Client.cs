@@ -189,15 +189,15 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
     CollectionFields fields;
     if (_collectionFields.TryGetValue(type, out fields)) return fields;
     _collectionFields.Add(type, fields = new CollectionFields());
-    foreach (var propertyInfo in type.GetProperties()) {
-      var idAttributes = (Id[])propertyInfo.GetCustomAttributes(typeof(Id), false);
+    foreach (var fieldInfo in type.GetFields()) {
+      var idAttributes = (Id[])fieldInfo.GetCustomAttributes(typeof(Id), false);
       if (idAttributes.Length == 0) continue;
-      var propertyType = propertyInfo.PropertyType;
+      var fieldType = fieldInfo.FieldType;
       if (!(
-        propertyType.IsGenericType &&
-        propertyType.GetGenericTypeDefinition() == typeof(DCollection<>)
+        fieldType.IsGenericType &&
+        fieldType.GetGenericTypeDefinition() == typeof(DCollection<>)
       )) continue;
-      fields.Add(idAttributes[0].value, (propertyInfo.Name, propertyType.GetGenericArguments()[0]));
+      fields.Add(idAttributes[0].value, (fieldInfo.Name, fieldType.GetGenericArguments()[0]));
     }
     return fields;
   }

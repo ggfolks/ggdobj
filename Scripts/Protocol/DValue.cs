@@ -4,12 +4,12 @@ using System;
 using Firebase.Firestore;
 
 /// <summary>
-/// Represents a simple value property in a distributed object.
+/// Represents a simple value field in a distributed object.
 /// </summary>
-public class DValue<T> : DProperty {
+public class DValue<T> : DField {
 
   /// <summary>
-  /// Retrieves or sets the current value of the property. Can only be set on the server.
+  /// Retrieves or sets the current value of the field. Can only be set on the server.
   /// </summary>
   public T current {
     get => _current;

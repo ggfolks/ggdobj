@@ -11,7 +11,7 @@ public abstract class AbstractRootObject : DObject {
   /// The queue for requests concerning objects.
   /// </summary>
   [Id(1)]
-  public DQueue<MetaRequest, MetaResponse> metaq { get; protected set; }
+  public readonly DQueue<MetaRequest, MetaResponse> metaq;
 }
 
 }

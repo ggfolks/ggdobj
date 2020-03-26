@@ -6,9 +6,9 @@ using System.Linq;
 using Firebase.Firestore;
 
 /// <summary>
-/// Represents a hash map property in a distributed object.
+/// Represents a hash map field in a distributed object.
 /// </summary>
-public class DMap<TKey, TValue> : DProperty {
+public class DMap<TKey, TValue> : DField {
 
   /// <summary>
   /// An event fired when an entry is set within the set.

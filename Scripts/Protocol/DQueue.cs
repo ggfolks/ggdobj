@@ -3,10 +3,10 @@ namespace GGFolks.Protocol {
 using System;
 
 /// <summary>
-/// Represents a queue property in a distributed object with separate types for upstream (client to
+/// Represents a queue field in a distributed object with separate types for upstream (client to
 /// server) and downstream (server to client) messages.
 /// </summary>
-public class DQueue<TUp, TDown> : DProperty {
+public class DQueue<TUp, TDown> : DField {
 
   /// <summary>
   /// An event fired when a message is posted on the queue.

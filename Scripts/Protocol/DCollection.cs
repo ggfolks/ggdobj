@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 /// <summary>
-/// Represents a collection property in a distributed object.
+/// Represents a collection field in a distributed object.
 /// </summary>
-public class DCollection<T> : DProperty where T : DObject, new() {
+public class DCollection<T> : DField where T : DObject, new() {
 
   /// <summary>
   /// Type for delegates that check asynchronously whether a subscriber can access a member.

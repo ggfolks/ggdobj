@@ -5,17 +5,17 @@ using System.Threading.Tasks;
 using Firebase.Firestore;
 
 /// <summary>
-/// Base class for properties of distributed objects.
+/// Base class for fields of distributed objects.
 /// </summary>
-public abstract class DProperty {
+public abstract class DField {
 
   /// <summary>
-  /// The name of the property in Firestore, if applicable.
+  /// The name of the field in Firestore, if applicable.
   /// </summary>
   public string firestoreField { get; private set; }
 
   /// <summary>
-  /// Initializes the property after creation.
+  /// Initializes the field after creation.
   /// </summary>
   public virtual void Init (DObject owner, string name, uint id, object ctx, BackingType backing) {
     _owner = owner;
@@ -26,14 +26,14 @@ public abstract class DProperty {
   }
 
   /// <summary>
-  /// Writes the current value of the property to the supplied encoder.
+  /// Writes the current value of the field to the supplied encoder.
   /// </summary>
   public virtual void Encode (Encoder encoder) {
     // nothing by default
   }
 
   /// <summary>
-  /// Reads the value of the property from the supplied decoder.
+  /// Reads the value of the field from the supplied decoder.
   /// </summary>
   public virtual void Decode (Decoder decoder, WireType wireType) {
     decoder.Skip(wireType);
@@ -87,14 +87,14 @@ public abstract class DProperty {
   /// </summary>
   /// <param name="session">The session attempting to subscribe.</param>
   /// <param name="path">The path of the object to which the client is subscribing.</param>
-  /// <param name="index">The index of this property in the path.</param>
+  /// <param name="index">The index of this field in the path.</param>
   /// <returns>If successful, the resolved dobject.</returns>
   public virtual Task<DObject> Resolve (ISession session, Path path, int index) {
-    throw new Exception("Not a collection property.");
+    throw new Exception("Not a collection field.");
   }
 
   /// <summary>
-  /// Extracts the property value from the provided Firestore snapshot.
+  /// Extracts the field value from the provided Firestore snapshot.
   /// </summary>
   public virtual void Extract (DocumentSnapshot snapshot) {
     // nothing by default

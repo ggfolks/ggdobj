@@ -6,9 +6,9 @@ using System.Linq;
 using Firebase.Firestore;
 
 /// <summary>
-/// Represents a hash set property in a distributed object.
+/// Represents a hash set field in a distributed object.
 /// </summary>
-public class DSet<T> : DProperty {
+public class DSet<T> : DField {
 
   /// <summary>
   /// An event fired when an element is added to the set.

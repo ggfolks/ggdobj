@@ -5,7 +5,7 @@ using System;
 /// <summary>
 /// Specifies the protocol identifier of a type or a field.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Field)]
 public class Id : Attribute {
 
   /// <summary>

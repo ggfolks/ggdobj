@@ -85,24 +85,24 @@ public abstract class DObject : Disposable {
 
   public DObject () {
     var type = GetType();
-    foreach (var propertyInfo in type.GetProperties()) {
-      var idAttributes = (Id[])propertyInfo.GetCustomAttributes(typeof(Id), false);
+    foreach (var fieldInfo in type.GetFields()) {
+      var idAttributes = (Id[])fieldInfo.GetCustomAttributes(typeof(Id), false);
       if (idAttributes.Length == 0) continue;
-      var property = (DProperty)propertyInfo.GetValue(this);
-      if (property == null) {
-        var constructor = propertyInfo.PropertyType.GetConstructor(Type.EmptyTypes);
-        property = (DProperty)constructor.Invoke(null);
-        propertyInfo.SetValue(this, property);
+      var field = (DField)fieldInfo.GetValue(this);
+      if (field == null) {
+        var constructor = fieldInfo.FieldType.GetConstructor(Type.EmptyTypes);
+        field = (DField)constructor.Invoke(null);
+        fieldInfo.SetValue(this, field);
       }
       var backing = this.backing;
-      var backingAttributes = (Backing[])propertyInfo.GetCustomAttributes(typeof(Backing), false);
+      var backingAttributes = (Backing[])fieldInfo.GetCustomAttributes(typeof(Backing), false);
       if (backingAttributes.Length > 0 && backingAttributes[0].type != BackingType.Default) {
         backing = backingAttributes[0].type;
       }
-      property.Init(
-        this, propertyInfo.Name, idAttributes[0].value,
-        $"{type.FullName}.{propertyInfo.Name}", backing);
-      _properties.Add(idAttributes[0].value, property);
+      field.Init(
+        this, fieldInfo.Name, idAttributes[0].value,
+        $"{type.FullName}.{fieldInfo.Name}", backing);
+      _fields.Add(idAttributes[0].value, field);
     }
     disposer.Add(() => state = State.Disposed);
   }
@@ -153,10 +153,10 @@ public abstract class DObject : Disposable {
   /// <returns>If successful, the resolved dobject.</returns>
   public async Task<DObject> Resolve (ISession session, Path path, int index) {
     var (id, _) = path.elements[index];
-    DProperty property;
-    if (_properties.TryGetValue(id, out property)) {
-      return await property.Resolve(session, path, index);
-    } else throw new Exception($"Unknown property {id}.");
+    DField field;
+    if (_fields.TryGetValue(id, out field)) {
+      return await field.Resolve(session, path, index);
+    } else throw new Exception($"Unknown field {id}.");
   }
 
   /// <summary>
@@ -178,7 +178,7 @@ public abstract class DObject : Disposable {
   /// </summary>
   public void ServerEncode (Encoder encoder) {
     encoder.WriteVarUInt((uint)MessageType.Sync);
-    foreach (var property in _properties.Values) property.Encode(encoder);
+    foreach (var field in _fields.Values) field.Encode(encoder);
   }
 
   /// <summary>
@@ -187,38 +187,38 @@ public abstract class DObject : Disposable {
   public void ClientDecode (Decoder decoder) {
     var messageType = (MessageType)decoder.ReadVarUInt();
     if (state != State.Active && messageType != MessageType.Sync) {
-      Debug.LogWarning($"Got property update before sync [messageType={messageType}].");
+      Debug.LogWarning($"Got field update before sync [messageType={messageType}].");
     }
     switch (messageType) {
       case MessageType.Sync: {
         var end = decoder.BaseStream.Length;
-        while (decoder.BaseStream.Position < end) DecodeProperty(decoder);
+        while (decoder.BaseStream.Position < end) DecodeField(decoder);
         state = State.Active;
         break;
       }
       case MessageType.ValueChange: {
-        DecodeProperty(decoder);
+        DecodeField(decoder);
         break;
       }
       case MessageType.SetAdd: {
         var (id, wireType) = Decoder.DecodeIdWireType(decoder.ReadVarUInt());
-        DProperty property;
-        if (_properties.TryGetValue(id, out property)) property.DecodeSetAdd(decoder, wireType);
-        else decoder.Skip(wireType); // unknown property; skip over
+        DField field;
+        if (_fields.TryGetValue(id, out field)) field.DecodeSetAdd(decoder, wireType);
+        else decoder.Skip(wireType); // unknown field; skip over
         break;
       }
       case MessageType.SetRemove: {
         var (id, wireType) = Decoder.DecodeIdWireType(decoder.ReadVarUInt());
-        DProperty property;
-        if (_properties.TryGetValue(id, out property)) property.DecodeSetRemove(decoder, wireType);
-        else decoder.Skip(wireType); // unknown property; skip over
+        DField field;
+        if (_fields.TryGetValue(id, out field)) field.DecodeSetRemove(decoder, wireType);
+        else decoder.Skip(wireType); // unknown field; skip over
         break;
       }
       case MessageType.MapSet: {
         var (id, keyType, valueType) = Decoder.DecodeIdWireTypes(decoder.ReadVarUInt());
-        DProperty property;
-        if (_properties.TryGetValue(id, out property)) {
-          property.DecodeMapSet(decoder, keyType, valueType);
+        DField field;
+        if (_fields.TryGetValue(id, out field)) {
+          field.DecodeMapSet(decoder, keyType, valueType);
         } else {
           decoder.Skip(keyType);
           decoder.Skip(valueType);
@@ -227,17 +227,17 @@ public abstract class DObject : Disposable {
       }
       case MessageType.MapRemove: {
         var (id, wireType) = Decoder.DecodeIdWireType(decoder.ReadVarUInt());
-        DProperty property;
-        if (_properties.TryGetValue(id, out property)) property.DecodeMapRemove(decoder, wireType);
-        else decoder.Skip(wireType); // unknown property; skip over
+        DField field;
+        if (_fields.TryGetValue(id, out field)) field.DecodeMapRemove(decoder, wireType);
+        else decoder.Skip(wireType); // unknown field; skip over
         break;
       }
       case MessageType.QueueReceive: {
         var (id, wireType) = Decoder.DecodeIdWireType(decoder.ReadVarUInt());
-        DProperty property;
-        if (_properties.TryGetValue(id, out property)) {
-          property.DecodeQueueReceive(decoder, wireType);
-        } else decoder.Skip(wireType); // unknown property; skip over
+        DField field;
+        if (_fields.TryGetValue(id, out field)) {
+          field.DecodeQueueReceive(decoder, wireType);
+        } else decoder.Skip(wireType); // unknown field; skip over
         break;
       }
       default:
@@ -251,14 +251,14 @@ public abstract class DObject : Disposable {
   /// </summary>
   public void ServerDecode (Decoder decoder, ISession session) {
     var (id, wireType) = Decoder.DecodeIdWireType(decoder.ReadVarUInt());
-    DProperty property;
-    if (_properties.TryGetValue(id, out property)) {
-      property.DecodeQueuePost(decoder, wireType, session);
-    } else decoder.Skip(wireType); // unknown property; skip over
+    DField field;
+    if (_fields.TryGetValue(id, out field)) {
+      field.DecodeQueuePost(decoder, wireType, session);
+    } else decoder.Skip(wireType); // unknown field; skip over
   }
 
   /// <summary>
-  /// Notifies the object that one of its value properties has changed.
+  /// Notifies the object that one of its value fields has changed.
   /// </summary>
   public void OnValueChange<T> (DValue<T> value) {
     if (messageGenerated != null) {
@@ -274,7 +274,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that an element has been added to one of its set properties.
+  /// Notifies the object that an element has been added to one of its set fields.
   /// </summary>
   public void OnSetAdd<T> (DSet<T> set, T value) {
     if (messageGenerated != null) {
@@ -290,7 +290,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that an element has been removed from one of its set properties.
+  /// Notifies the object that an element has been removed from one of its set fields.
   /// </summary>
   public void OnSetRemove<T> (DSet<T> set, T value) {
     if (messageGenerated != null) {
@@ -309,7 +309,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that an entry has been set in one of its map properties.
+  /// Notifies the object that an entry has been set in one of its map fields.
   /// </summary>
   public void OnMapSet<TKey, TValue> (DMap<TKey, TValue> map, TKey key, TValue value) {
     if (messageGenerated != null) {
@@ -328,7 +328,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that an entry has been removed in one of its map properties.
+  /// Notifies the object that an entry has been removed in one of its map fields.
   /// </summary>
   public void OnMapRemove<TKey, TValue> (DMap<TKey, TValue> map, TKey key) {
     if (messageGenerated != null) {
@@ -347,7 +347,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that an upstream message has been posted to one of its queue properties.
+  /// Notifies the object that an upstream message has been posted to one of its queue fields.
   /// </summary>
   public void OnPost<TUp, TDown> (DQueue<TUp, TDown> queue, TUp message) {
     if (messageGenerated == null) return;
@@ -357,8 +357,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that a downstream message has been broadcast on one of its queue
-  /// properties.
+  /// Notifies the object that a downstream message has been broadcast on one of its queue fields.
   /// </summary>
   public void OnBroadcast<TUp, TDown> (DQueue<TUp, TDown> queue, TDown message) {
     if (messageGenerated == null) return;
@@ -368,7 +367,7 @@ public abstract class DObject : Disposable {
   }
 
   /// <summary>
-  /// Notifies the object that a downstream message has been sent on one of its queue properties.
+  /// Notifies the object that a downstream message has been sent on one of its queue fields.
   /// </summary>
   public void OnSend<TUp, TDown> (DQueue<TUp, TDown> queue, TDown message, ISession session) {
     _encoder.WriteVarUInt((uint)MessageType.QueueReceive);
@@ -383,11 +382,11 @@ public abstract class DObject : Disposable {
     state = State.Disconnected;
   }
 
-  private void DecodeProperty (Decoder decoder) {
+  private void DecodeField (Decoder decoder) {
     var (id, wireType) = Decoder.DecodeIdWireType(decoder.ReadVarUInt());
-    DProperty property;
-    if (_properties.TryGetValue(id, out property)) property.Decode(decoder, wireType);
-    else decoder.Skip(wireType); // unknown property; skip over
+    DField field;
+    if (_fields.TryGetValue(id, out field)) field.Decode(decoder, wireType);
+    else decoder.Skip(wireType); // unknown field; skip over
   }
 
   private async void FirestoreResolve () {
@@ -415,7 +414,7 @@ public abstract class DObject : Disposable {
   }
 
   private void OnDocumentChanged (DocumentSnapshot snapshot) {
-    foreach (var property in _properties.Values) property.Extract(snapshot);
+    foreach (var field in _fields.Values) field.Extract(snapshot);
   }
 
   private async void SetDocumentAsync (Dictionary<string, object> dictionary) {
@@ -429,7 +428,7 @@ public abstract class DObject : Disposable {
   private enum MessageType { Sync, ValueChange, SetAdd, SetRemove, MapSet, MapRemove, QueueReceive }
 
   private State _state = State.Resolving;
-  private Dictionary<uint, DProperty> _properties = new Dictionary<uint, DProperty>();
+  private Dictionary<uint, DField> _fields = new Dictionary<uint, DField>();
   private Encoder _encoder = new Encoder();
   private DocumentReference _document;
   private CanAccess _canAccess;
