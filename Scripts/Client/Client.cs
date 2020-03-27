@@ -60,8 +60,10 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
       newObj.FirestoreInit(
         this,
         path,
-        subscriber => canAccess(subscriber, path.elements[path.elements.Length - 1].key),
-        obj => populate(newObj)
+        canAccess == null
+          ? (DObject.CanAccess)null
+          : subscriber => canAccess(subscriber, path.elements[path.elements.Length - 1].key),
+        populate == null ? (DObject.Populate)null : obj => populate(newObj)
       );
       return newObj;
     }
