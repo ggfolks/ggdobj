@@ -22,6 +22,12 @@ public class Encoder : BinaryWriter {
   public delegate void ValueWriter (Encoder encoder, object value);
 
   /// <summary>
+  /// Delegate type for methods that write values of a known type to an encoder (without size
+  /// information).
+  /// </summary>
+  public delegate void TypeWriter (Encoder encoder, object value);
+
+  /// <summary>
   /// Gets a value writer for the identified type.
   /// </summary>
   public static ValueWriter GetValueWriter (Type type) {
@@ -109,6 +115,41 @@ public class Encoder : BinaryWriter {
   }
 
   /// <summary>
+  /// Gets a type writer for the identified type (which must be a struct or class).
+  /// </summary>
+  public static TypeWriter GetTypeWriter (Type type) {
+    TypeWriter typeWriter;
+    if (!_typeWriters.TryGetValue(type, out typeWriter)) {
+      var fieldWriterList = new List<TypeWriter>();
+      foreach (var field in type.GetFields()) {
+        var idAttributes = (Id[])field.GetCustomAttributes(typeof(Id), false);
+        if (idAttributes.Length == 0) continue;
+        var idWireType = EncodeIdWireType(idAttributes[0].value, field.FieldType);
+        var valueWriter = GetValueWriter(field.FieldType);
+        fieldWriterList.Add((encoder, value) => {
+          encoder.WriteVarUInt(idWireType);
+          valueWriter(encoder, field.GetValue(value));
+        });
+      }
+      var fieldWriters = fieldWriterList.ToArray();
+      if (type.IsValueType) {
+        _typeWriters.Add(type, typeWriter = (encoder, value) => {
+          foreach (var fieldWriter in fieldWriters) fieldWriter(encoder, value);
+        });
+      } else {
+        uint id = 1; // default id is one, in case we don't bother with subclasses
+        var idAttributes = (Id[])type.GetCustomAttributes(typeof(Id), false);
+        if (idAttributes.Length > 0) id = idAttributes[0].value;
+        _typeWriters.Add(type, typeWriter = (encoder, value) => {
+          encoder.WriteVarUInt(id);
+          foreach (var fieldWriter in fieldWriters) fieldWriter(encoder, value);
+        });
+      }
+    }
+    return typeWriter;
+  }
+
+  /// <summary>
   /// Encodes a field id along with the wire type corresponding to the type provided.
   /// </summary>
   public static uint EncodeIdWireType (uint id, Type type) {
@@ -180,38 +221,6 @@ public class Encoder : BinaryWriter {
     if (type == typeof(double)) return WireType.EightByte;
     if (type.IsPrimitive || type.IsEnum) return WireType.VarInt;
     return WireType.ByteLength;
-  }
-
-  private static TypeWriter GetTypeWriter (Type type) {
-    TypeWriter typeWriter;
-    if (!_typeWriters.TryGetValue(type, out typeWriter)) {
-      var fieldWriterList = new List<TypeWriter>();
-      foreach (var field in type.GetFields()) {
-        var idAttributes = (Id[])field.GetCustomAttributes(typeof(Id), false);
-        if (idAttributes.Length == 0) continue;
-        var idWireType = EncodeIdWireType(idAttributes[0].value, field.FieldType);
-        var valueWriter = GetValueWriter(field.FieldType);
-        fieldWriterList.Add((encoder, value) => {
-          encoder.WriteVarUInt(idWireType);
-          valueWriter(encoder, field.GetValue(value));
-        });
-      }
-      var fieldWriters = fieldWriterList.ToArray();
-      if (type.IsValueType) {
-        _typeWriters.Add(type, typeWriter = (encoder, value) => {
-          foreach (var fieldWriter in fieldWriters) fieldWriter(encoder, value);
-        });
-      } else {
-        uint id = 1; // default id is one, in case we don't bother with subclasses
-        var idAttributes = (Id[])type.GetCustomAttributes(typeof(Id), false);
-        if (idAttributes.Length > 0) id = idAttributes[0].value;
-        _typeWriters.Add(type, typeWriter = (encoder, value) => {
-          encoder.WriteVarUInt(id);
-          foreach (var fieldWriter in fieldWriters) fieldWriter(encoder, value);
-        });
-      }
-    }
-    return typeWriter;
   }
 
   private static TypeSizer GetTypeSizer (Type type) {
@@ -361,8 +370,6 @@ public class Encoder : BinaryWriter {
     var byteCount = (uint)Encoding.UTF8.GetByteCount(value);
     return GetVarUIntSize(byteCount) + byteCount;
   }
-
-  private delegate void TypeWriter (Encoder encoder, object value);
 
   private delegate uint TypeSizer (object value);
 

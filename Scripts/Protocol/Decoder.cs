@@ -21,6 +21,12 @@ public class Decoder : BinaryReader {
   public delegate object ValueReader (Decoder decoder, WireType wireType, object ctx);
 
   /// <summary>
+  /// Delegate type for methods that read values of a known type from an encoder (without size
+  /// information).
+  /// </summary>
+  public delegate object TypeReader (Decoder decoder, long end);
+
+  /// <summary>
   /// Gets a value reader for the identified type.
   /// </summary>
   public static ValueReader GetValueReader (Type type) {
@@ -176,6 +182,57 @@ public class Decoder : BinaryReader {
   }
 
   /// <summary>
+  /// Gets a type reader for the identified type (which must be a struct or class).
+  /// </summary>
+  public static TypeReader GetTypeReader (Type type) {
+    TypeReader typeReader;
+    if (!_typeReaders.TryGetValue(type, out typeReader)) {
+      if (type.IsValueType) {
+        _typeReaders.Add(type, typeReader = CreateBasicTypeReader(type));
+
+      } else {
+        // if we have subtype attributes, we want to read the type id and get a subtype reader
+        // based on that
+        var subtypeAttributes = (Subtypes[])type.GetCustomAttributes(typeof(Subtypes), false);
+        if (subtypeAttributes.Length > 0) {
+          var subtypeReaders = new Dictionary<uint, TypeReader>();
+          foreach (Type subtype in subtypeAttributes[0].value) {
+            var idAttributes = (Id[])subtype.GetCustomAttributes(typeof(Id), false);
+            if (idAttributes.Length == 0) continue;
+            subtypeReaders.Add(idAttributes[0].value, GetTypeReader(subtype));
+          }
+          _typeReaders.Add(type, typeReader = (decoder, end) => {
+            var typeId = decoder.ReadVarUInt();
+            if (typeId == 0) return null;
+            TypeReader subtypeReader;
+            if (subtypeReaders.TryGetValue(typeId, out subtypeReader)) {
+              return subtypeReader(decoder, end);
+            }
+            Debug.LogWarning($"Skipping unknown subtype [typeId={typeId}, type={type}].");
+            decoder.BaseStream.Seek(end, SeekOrigin.Begin);
+            return null;
+          });
+        } else {
+          // if we have an id, assume that we're the subtype
+          var basicReader = CreateBasicTypeReader(type);
+          var idAttributes = (Id[])type.GetCustomAttributes(typeof(Id), false);
+          if (idAttributes.Length > 0) {
+            _typeReaders.Add(type, typeReader = basicReader);
+          } else {
+            // with neither subtypes nor id, we assume a simple class (like a struct, but nullable)
+            _typeReaders.Add(type, typeReader = (decoder, end) => {
+              var typeId = decoder.ReadVarUInt();
+              if (typeId == 0) return null;
+              return basicReader(decoder, end);
+            });
+          }
+        }
+      }
+    }
+    return typeReader;
+  }
+
+  /// <summary>
   /// Decodes a combined field id and wire type.
   /// </summary>
   public static (uint, WireType) DecodeIdWireType (uint idWireType) {
@@ -279,54 +336,6 @@ public class Decoder : BinaryReader {
     return false;
   }
 
-  private static TypeReader GetTypeReader (Type type) {
-    TypeReader typeReader;
-    if (!_typeReaders.TryGetValue(type, out typeReader)) {
-      if (type.IsValueType) {
-        _typeReaders.Add(type, typeReader = CreateBasicTypeReader(type));
-
-      } else {
-        // if we have subtype attributes, we want to read the type id and get a subtype reader
-        // based on that
-        var subtypeAttributes = (Subtypes[])type.GetCustomAttributes(typeof(Subtypes), false);
-        if (subtypeAttributes.Length > 0) {
-          var subtypeReaders = new Dictionary<uint, TypeReader>();
-          foreach (Type subtype in subtypeAttributes[0].value) {
-            var idAttributes = (Id[])subtype.GetCustomAttributes(typeof(Id), false);
-            if (idAttributes.Length == 0) continue;
-            subtypeReaders.Add(idAttributes[0].value, GetTypeReader(subtype));
-          }
-          _typeReaders.Add(type, typeReader = (decoder, end) => {
-            var typeId = decoder.ReadVarUInt();
-            if (typeId == 0) return null;
-            TypeReader subtypeReader;
-            if (subtypeReaders.TryGetValue(typeId, out subtypeReader)) {
-              return subtypeReader(decoder, end);
-            }
-            Debug.LogWarning($"Skipping unknown subtype [typeId={typeId}, type={type}].");
-            decoder.BaseStream.Seek(end, SeekOrigin.Begin);
-            return null;
-          });
-        } else {
-          // if we have an id, assume that we're the subtype
-          var basicReader = CreateBasicTypeReader(type);
-          var idAttributes = (Id[])type.GetCustomAttributes(typeof(Id), false);
-          if (idAttributes.Length > 0) {
-            _typeReaders.Add(type, typeReader = basicReader);
-          } else {
-            // with neither subtypes nor id, we assume a simple class (like a struct, but nullable)
-            _typeReaders.Add(type, typeReader = (decoder, end) => {
-              var typeId = decoder.ReadVarUInt();
-              if (typeId == 0) return null;
-              return basicReader(decoder, end);
-            });
-          }
-        }
-      }
-    }
-    return typeReader;
-  }
-
   private static TypeReader CreateBasicTypeReader (Type type) {
     var fieldReaders = new Dictionary<uint, FieldReader>();
     foreach (var field in type.GetFields()) {
@@ -349,8 +358,6 @@ public class Decoder : BinaryReader {
       return value;
     };
   }
-
-  private delegate object TypeReader (Decoder decoder, long end);
 
   private delegate void FieldReader (Decoder decoder, object value, WireType wireType);
 
