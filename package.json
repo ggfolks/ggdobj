@@ -6,7 +6,8 @@
   "unity": "2019.3",
   "dependencies": {
     "com.google.firebase.auth": "6.13.0",
-    "com.google.firebase.firestore": "6.13.0"
+    "com.google.firebase.firestore": "6.13.0",
+    "gg.folks.core": "1.0.0"
  },
   "author": {
     "name": "GGFolks",
