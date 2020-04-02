@@ -16,7 +16,7 @@ using React;
 public class Session<TRoot> : WebSocketBehavior, ISession where TRoot : AbstractRootObject, new() {
 
   // defined by ISubscriber
-  public Value<string> userId { get; } = new Value<string>();
+  public Value<string> userId { get => _userId; }
 
   // defined by ISession
   public void SubscribeToObject (uint id, DObject obj) {
@@ -121,6 +121,7 @@ public class Session<TRoot> : WebSocketBehavior, ISession where TRoot : Abstract
     }
   }
 
+  private readonly Mutable<string> _userId = Mutable<string>.Local(null);
   private Dictionary<uint, DObject> _objectsById = new Dictionary<uint, DObject>();
   private Dictionary<DObject, uint> _idsByObject = new Dictionary<DObject, uint>();
   private Encoder _encoder = new Encoder();

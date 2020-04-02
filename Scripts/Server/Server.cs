@@ -9,6 +9,8 @@ using WebSocketSharp.Server;
 using Data;
 using Protocol;
 
+using GGFolks.React;
+
 /// <summary>
 /// The web socket server used both for editor testing and standalone (headless) operation.
 /// </summary>
@@ -59,7 +61,7 @@ public static class Server<TRoot> where TRoot : AbstractRootObject, new() {
     if (request is MetaRequest.Authenticate) {
       // TODO: validate token
       var authenticate = (MetaRequest.Authenticate)request;
-      session.userId.current = authenticate.userId;
+      ((Mutable<string>)session.userId).Update(authenticate.userId);
       Debug.Log($"Client authenticated [who={session}].");
 
     } else if (request is MetaRequest.Subscribe) {

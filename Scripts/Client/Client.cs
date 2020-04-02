@@ -28,7 +28,7 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
   public bool connected { get => _webSocket != null && _webSocket.State == WebSocketState.Open; }
 
   // defined by ISubscriber
-  public Value<string> userId { get; } = new Value<string>();
+  public Value<string> userId { get => _userId; }
 
   // defined by IClient
   public Task<FirebaseFirestore> firestore { get => AbstractApp<TRoot>.instance.firestore; }
@@ -100,7 +100,7 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
       var currentUser = firebaseAuth.CurrentUser;
       if (currentUser == null) return;
       _token = await currentUser.TokenAsync(false);
-      userId.current = currentUser.UserId;
+      _userId.Update(currentUser.UserId);
       if (connected) {
         rootObject.metaq.Post(new MetaRequest.Authenticate() {
           userId = userId.current, token = _token });
@@ -216,6 +216,7 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
   private bool _reconnect = true;
   private int _reconnectAttempts = 0;
 
+  private readonly Mutable<string> _userId = Mutable<string>.Local(null);
   private Dictionary<uint, WeakReference> _objectsById = new Dictionary<uint, WeakReference>();
   private Dictionary<Path, WeakReference> _objectsByPath = new Dictionary<Path, WeakReference>();
   private uint _nextId;
