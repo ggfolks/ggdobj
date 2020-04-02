@@ -216,7 +216,7 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
   private bool _reconnect = true;
   private int _reconnectAttempts = 0;
 
-  private readonly Mutable<string> _userId = Values.Local<string>(null);
+  private readonly Mutable<string> _userId = Mutable<string>.Local(null);
   private Dictionary<uint, WeakReference> _objectsById = new Dictionary<uint, WeakReference>();
   private Dictionary<Path, WeakReference> _objectsByPath = new Dictionary<Path, WeakReference>();
   private uint _nextId;
