@@ -1,3 +1,4 @@
 {
-  "name": "GGFolks.DObj"
+  "name": "GGFolks.DObj",
+  "references": ["GGFolks.Core"]
 }
