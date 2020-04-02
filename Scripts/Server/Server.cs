@@ -8,8 +8,7 @@ using WebSocketSharp.Server;
 
 using Data;
 using Protocol;
-
-using GGFolks.React;
+using React;
 
 /// <summary>
 /// The web socket server used both for editor testing and standalone (headless) operation.

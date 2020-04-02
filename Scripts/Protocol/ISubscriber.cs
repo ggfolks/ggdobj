@@ -1,6 +1,6 @@
 namespace GGFolks.Protocol {
 
-using GGFolks.React;
+using React;
 
 /// <summary>
 /// Parent interface for Client and Session.

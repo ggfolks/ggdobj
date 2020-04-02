@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using WebSocketSharp;
-﻿using WebSocketSharp.Server;
+using WebSocketSharp.Server;
 
 using Data;
 using Protocol;
-using GGFolks.React;
+using React;
 
 /// <summary>
 /// Handles a single websocket session.
@@ -121,7 +121,7 @@ public class Session<TRoot> : WebSocketBehavior, ISession where TRoot : Abstract
     }
   }
 
-  private readonly Mutable<string> _userId = Mutable<string>.Local(null);
+  private readonly Mutable<string> _userId = Mutable<string>.Local<string>(null);
   private Dictionary<uint, DObject> _objectsById = new Dictionary<uint, DObject>();
   private Dictionary<DObject, uint> _idsByObject = new Dictionary<DObject, uint>();
   private Encoder _encoder = new Encoder();
