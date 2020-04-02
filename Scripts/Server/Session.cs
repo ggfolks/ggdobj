@@ -8,7 +8,7 @@ using WebSocketSharp;
 
 using Data;
 using Protocol;
-using React;
+using GGFolks.React;
 
 /// <summary>
 /// Handles a single websocket session.
