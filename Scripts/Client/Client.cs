@@ -178,7 +178,11 @@ public class Client<TRoot> : Disposable, IClient where TRoot : AbstractRootObjec
   }
 
   private void OnMetaQueueReceive (object source, MetaResponse response) {
-    if (response is MetaResponse.SubscribeFailed) {
+    if (response is MetaResponse.AuthenticateFailed) {
+      var authFailed = (MetaResponse.AuthenticateFailed)response;
+      Debug.LogWarning(
+        $"Failed to authenticate [userId={authFailed.userId}, cause={authFailed.cause}].");
+    } else if (response is MetaResponse.SubscribeFailed) {
       var subscribeFailed = (MetaResponse.SubscribeFailed)response;
       Debug.LogWarning(
         $"Failed to subscribe [id={subscribeFailed.id}, cause={subscribeFailed.cause}].");

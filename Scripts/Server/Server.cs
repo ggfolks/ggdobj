@@ -16,6 +16,17 @@ using React;
 public static class Server<TRoot> where TRoot : AbstractRootObject, new() {
 
   /// <summary>
+  /// Type for delegates that asynchronously verify id tokens.  Should throw an exception if the
+  /// token cannot be verified/doesn't correspond to the given user id.
+  /// </summary>
+  public delegate Task VerifyToken (string userId, string token);
+
+  /// <summary>
+  /// The token verification delegate.  Default simply verifies everything.
+  /// </summary>
+  public static VerifyToken verifyToken = (userId, token) => Task.CompletedTask;
+
+  /// <summary>
   /// The top-level dobject.
   /// </summary>
   public static readonly TRoot rootObject = new TRoot();
@@ -58,9 +69,16 @@ public static class Server<TRoot> where TRoot : AbstractRootObject, new() {
     var (request, subscriber) = args;
     var session = (Session<TRoot>)subscriber;
     if (request is MetaRequest.Authenticate) {
-      // TODO: validate token
       var authenticate = (MetaRequest.Authenticate)request;
-      ((Mutable<string>)session.userId).Update(authenticate.userId);
+      var userId = authenticate.userId;
+      try {
+        await verifyToken(userId, authenticate.token);
+      } catch (Exception e) {
+        rootObject.metaq.Send(
+          new MetaResponse.AuthenticateFailed() { userId = userId, cause = e.Message }, session);
+        return;
+      }
+      ((Mutable<string>)session.userId).Update(userId);
       Debug.Log($"Client authenticated [who={session}].");
 
     } else if (request is MetaRequest.Subscribe) {
